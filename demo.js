@@ -93,11 +93,56 @@ function handlePrefixChange(e) {
 function handleItemSpecificChange(e) {
     selectedItemSpecific = e.target.value;
     runEngineButton.disabled = !selectedItemSpecific;
+
+    // Update confidence slider appearance based on whether rule uses AI
+    if (selectedItemSpecific && selectedPrefix) {
+        const prefixData = partTypeLogic[selectedPrefix];
+        const ruleTypeCode = prefixData.itemSpecifics[selectedItemSpecific];
+        const ruleType = RULE_TYPES[ruleTypeCode];
+
+        if (ruleType && !ruleType.usesAI) {
+            // Non-AI rule - gray out confidence slider
+            aiConfidenceSlider.classList.add('opacity-50');
+            confidenceValueDisplay.textContent = 'N/A';
+            confidenceValueDisplay.classList.remove('text-green-400', 'text-red-400');
+            confidenceValueDisplay.classList.add('text-gray-500');
+        } else {
+            // AI rule - restore confidence slider
+            aiConfidenceSlider.classList.remove('opacity-50');
+            confidenceValueDisplay.textContent = `${simulatedConfidence}%`;
+            confidenceValueDisplay.classList.remove('text-gray-500');
+            if (simulatedConfidence >= CONFIDENCE_THRESHOLD) {
+                confidenceValueDisplay.classList.add('text-green-400');
+            } else {
+                confidenceValueDisplay.classList.add('text-red-400');
+            }
+        }
+    }
 }
 
 function handleConfidenceChange(e) {
     simulatedConfidence = parseInt(e.target.value);
+
+    // Check if current rule uses AI
+    let usesAI = true;
+    if (selectedItemSpecific && selectedPrefix) {
+        const prefixData = partTypeLogic[selectedPrefix];
+        if (prefixData && !prefixData.excluded) {
+            const ruleTypeCode = prefixData.itemSpecifics[selectedItemSpecific];
+            const ruleType = RULE_TYPES[ruleTypeCode];
+            usesAI = ruleType ? ruleType.usesAI : true;
+        }
+    }
+
+    if (!usesAI) {
+        confidenceValueDisplay.textContent = 'N/A';
+        confidenceValueDisplay.classList.remove('text-green-400', 'text-red-400');
+        confidenceValueDisplay.classList.add('text-gray-500');
+        return;
+    }
+
     confidenceValueDisplay.textContent = `${simulatedConfidence}%`;
+    confidenceValueDisplay.classList.remove('text-gray-500');
 
     // Color code based on threshold
     if (simulatedConfidence >= CONFIDENCE_THRESHOLD) {
