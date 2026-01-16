@@ -82,23 +82,17 @@ flowchart TB
         GS[("Google Sheets<br/>(Raw Inventory)")]
     end
 
-    subgraph PHASE2 ["PHASE 2: IPN Persistence"]
+    subgraph PHASE2 ["PHASE 2: IPN Persistence + Category"]
         MPT[("Airtable<br/>Master Parts Table")]
+        CAT["Category Resolution<br/>(Prefix + Category required)"]
     end
 
     subgraph PHASE3 ["PHASE 3: Physical Data"]
         WD["Weight & Dimensions<br/>Backfill + Lock"]
     end
 
-    subgraph CATGATE ["CATEGORY RESOLUTION (Gate)"]
-        direction TB
-        CATCHECK{"Shared Prefix?<br/>(e.g., 116)"}
-        CATLOCK["Category Locked"]
-    end
-
     subgraph PHASE4 ["PHASE 4: Item Specifics"]
-        direction TB
-        PTL["Part Type Logic<br/>(Prefix + Category)"]
+        PTL["Part Type Logic<br/>(Prefix + Category → Rules)"]
         RE["Rule Engine<br/>(8 Rule Types)"]
         AI["AI Classification<br/>(75% Threshold)"]
     end
@@ -108,7 +102,6 @@ flowchart TB
     end
 
     subgraph PHASE5 ["PHASE 5: Pre-Publish"]
-        direction TB
         STAGE[("eBay Listings<br/>(API) Table")]
         GATE["Approval Gate"]
     end
@@ -130,24 +123,19 @@ flowchart TB
     end
 
     PL -->|"Daily Full Refresh"| GS
-    GS -->|"IPN Persistence Rules"| MPT
+    GS -->|"IPN Persistence"| MPT
+    MPT --> CAT
+    CAT -->|"Shared prefix?<br/>Human categorizes"| CU
+    CU -->|"Category assigned"| MPT
     SS -->|"Weight/Dims API"| WD
     WD -->|"Backfill + Lock"| MPT
-
-    MPT --> CATCHECK
-    CATCHECK -->|"Yes - Ambiguous"| CU
-    CU -->|"Human Categorizes"| CATLOCK
-    CATCHECK -->|"No - Unique"| CATLOCK
-    CATLOCK -->|"Category + Lock"| MPT
-
-    CATLOCK --> PTL
-    PTL -->|"Lookup Rules"| RE
+    CAT --> PTL
+    PTL --> RE
     RE --> AI
     AI -->|"< 75% Confidence"| CU
     RE -->|"Write + Lock"| MPT
-    RE -->|"Listing-Only Values"| STAGE
+    RE -->|"Listing-Only"| STAGE
     CU -->|"Manual Entry"| MPT
-
     MPT --> STAGE
     STAGE --> GATE
     GATE --> FIT
@@ -158,8 +146,7 @@ flowchart TB
 
     style MPT fill:#1e40af,stroke:#3b82f6,color:#fff
     style STAGE fill:#7c3aed,stroke:#a78bfa,color:#fff
-    style CATCHECK fill:#d97706,stroke:#fbbf24,color:#fff
-    style CATLOCK fill:#059669,stroke:#34d399,color:#fff
+    style CAT fill:#d97706,stroke:#fbbf24,color:#fff
     style EBAY fill:#059669,stroke:#34d399,color:#fff
     style CU fill:#dc2626,stroke:#f87171,color:#fff
     style EX fill:#991b1b,stroke:#ef4444,color:#fff
@@ -171,15 +158,11 @@ flowchart TB
             <div class="grid md:grid-cols-2 gap-6 mt-8">
                 <div class="bg-dark-700 rounded-lg p-6 border border-dark-600">
                     <h3 class="text-lg font-semibold text-blue-400 mb-2">Phase 1-2: Data Ingestion</h3>
-                    <p class="text-gray-400 text-sm">Daily full refresh from Powerlink SQL to Google Sheets, then IPN persistence into Airtable Master Parts Table.</p>
+                    <p class="text-gray-400 text-sm">Daily full refresh from Powerlink SQL to Google Sheets, then IPN persistence into Airtable. Shared prefixes require category resolution via ClickUp.</p>
                 </div>
                 <div class="bg-dark-700 rounded-lg p-6 border border-dark-600">
                     <h3 class="text-lg font-semibold text-blue-400 mb-2">Phase 3: Physical Data</h3>
                     <p class="text-gray-400 text-sm">ShipStation API integration for weight and dimensions. Backfill missing data, then physically lock fields to prevent overwrites.</p>
-                </div>
-                <div class="bg-dark-700 rounded-lg p-6 border border-yellow-600/50">
-                    <h3 class="text-lg font-semibold text-yellow-400 mb-2">Category Resolution (Gate)</h3>
-                    <p class="text-gray-400 text-sm">Shared prefixes (e.g., 116) require human categorization via ClickUp before rules can run. Category determines which Part Type Logic row applies.</p>
                 </div>
                 <div class="bg-dark-700 rounded-lg p-6 border border-dark-600">
                     <h3 class="text-lg font-semibold text-orange-400 mb-2">Phase 4: Rule Engine (Core)</h3>
