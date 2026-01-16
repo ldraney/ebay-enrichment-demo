@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>eBay Listing Enrichment System | Proposal Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            900: '#0f0f0f',
+                            800: '#1a1a1a',
+                            700: '#2a2a2a',
+                            600: '#3a3a3a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: linear-gradient(180deg, #0f0f0f 0%, #1a1a1a 100%);
+        }
+        .mermaid {
+            background: transparent !important;
+        }
+        .mermaid svg {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body class="bg-dark-900 text-gray-100 min-h-screen">
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full bg-dark-900/90 backdrop-blur border-b border-dark-600 z-50">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
+            <span class="text-xl font-bold text-white">eBay Enrichment Demo</span>
+            <div class="space-x-6 text-sm">
+                <a href="#architecture" class="hover:text-blue-400 transition">Architecture</a>
+                <a href="#rule-engine" class="hover:text-blue-400 transition">Rule Engine</a>
+                <a href="#demo" class="hover:text-blue-400 transition">Interactive Demo</a>
+                <a href="#approach" class="hover:text-blue-400 transition">Approach</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="pt-32 pb-20 px-6">
+        <div class="max-w-4xl mx-auto text-center">
+            <h1 class="text-5xl font-bold mb-6 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+                eBay Listing Enrichment System
+            </h1>
+            <p class="text-xl text-gray-400 mb-4">
+                A rules-driven automation framework for inventory ingestion, enrichment, and controlled publishing
+            </p>
+            <p class="text-lg text-gray-500 border-l-4 border-blue-500 pl-4 mt-8 text-left max-w-2xl mx-auto">
+                "I've read your SOW. Here's how I'd build it."
+            </p>
+        </div>
+    </section>
+
+    <!-- Architecture Section -->
+    <section id="architecture" class="py-20 px-6 bg-dark-800">
+        <div class="max-w-6xl mx-auto">
+            <h2 class="text-3xl font-bold mb-4">Architecture Overview</h2>
+            <p class="text-gray-400 mb-8">The complete 7-phase pipeline from Powerlink to eBay, with strict authority boundaries.</p>
+
+            <div class="bg-dark-700 rounded-xl p-8 border border-dark-600">
+                <div class="mermaid">
+flowchart TB
+    subgraph SOURCE ["SOURCE SYSTEMS"]
+        PL[("Powerlink<br/>(SQL Database)")]
+        SS[("ShipStation<br/>API")]
+    end
+
+    subgraph PHASE1 ["PHASE 1: Daily Sync"]
+        GS[("Google Sheets<br/>(Raw Inventory)")]
+    end
+
+    subgraph PHASE2 ["PHASE 2: IPN Persistence"]
+        direction TB
+        MPT[("Airtable<br/>Master Parts Table")]
+        CAT["Category Resolution"]
+    end
+
+    subgraph PHASE3 ["PHASE 3: Physical Data"]
+        WD["Weight & Dimensions<br/>Backfill + Lock"]
+    end
+
+    subgraph PHASE4 ["PHASE 4: Item Specifics"]
+        direction TB
+        RE["Rule Engine<br/>(8 Rule Types)"]
+        AI["AI Classification<br/>(75% Threshold)"]
+        PTL["Part Type Logic<br/>Tables"]
+    end
+
+    subgraph ESCALATION ["ESCALATION"]
+        CU[("ClickUp<br/>Manual Tasks")]
+    end
+
+    subgraph PHASE5 ["PHASE 5: Pre-Publish"]
+        direction TB
+        STAGE[("eBay Listings<br/>(API) Table")]
+        GATE["Approval Gate"]
+    end
+
+    subgraph PHASE6 ["PHASE 6: Fitment"]
+        FIT["Fitment Extraction<br/>HTML Parse + Rewrite"]
+    end
+
+    subgraph PHASE7 ["PHASE 7: Publishing"]
+        GEN["Title/Description<br/>Generation"]
+    end
+
+    subgraph DESTINATION ["DESTINATION"]
+        EBAY[("eBay<br/>Live Listings")]
+    end
+
+    subgraph EXCLUDED ["EXCLUDED PREFIXES"]
+        EX["900, 950, 999<br/>Never Ingest"]
+    end
+
+    PL -->|"Daily Full Refresh"| GS
+    GS -->|"IPN Persistence Rules"| MPT
+    MPT --> CAT
+    SS -->|"Weight/Dims API"| WD
+    WD -->|"Backfill + Lock"| MPT
+    MPT --> RE
+    RE --> AI
+    PTL --> RE
+    AI -->|"< 75% Confidence"| CU
+    RE -->|"Write + Lock"| MPT
+    RE -->|"Listing-Only Values"| STAGE
+    CU -->|"Manual Entry"| MPT
+    MPT --> STAGE
+    STAGE --> GATE
+    GATE --> FIT
+    FIT --> GEN
+    GEN --> EBAY
+
+    PL -.->|"Filter Out"| EX
+
+    style MPT fill:#1e40af,stroke:#3b82f6,color:#fff
+    style STAGE fill:#7c3aed,stroke:#a78bfa,color:#fff
+    style EBAY fill:#059669,stroke:#34d399,color:#fff
+    style CU fill:#dc2626,stroke:#f87171,color:#fff
+    style EX fill:#991b1b,stroke:#ef4444,color:#fff
+    style RE fill:#d97706,stroke:#fbbf24,color:#fff
+                </div>
+            </div>
+
+            <!-- Phase Descriptions -->
+            <div class="grid md:grid-cols-2 gap-6 mt-8">
+                <div class="bg-dark-700 rounded-lg p-6 border border-dark-600">
+                    <h3 class="text-lg font-semibold text-blue-400 mb-2">Phase 1-2: Data Ingestion</h3>
+                    <p class="text-gray-400 text-sm">Daily full refresh from Powerlink SQL to Google Sheets, then IPN persistence and category resolution into Airtable Master Parts Table.</p>
+                </div>
+                <div class="bg-dark-700 rounded-lg p-6 border border-dark-600">
+                    <h3 class="text-lg font-semibold text-blue-400 mb-2">Phase 3: Physical Data</h3>
+                    <p class="text-gray-400 text-sm">ShipStation API integration for weight and dimensions. Backfill missing data, then physically lock fields to prevent overwrites.</p>
+                </div>
+                <div class="bg-dark-700 rounded-lg p-6 border border-dark-600">
+                    <h3 class="text-lg font-semibold text-orange-400 mb-2">Phase 4: Rule Engine (Core)</h3>
+                    <p class="text-gray-400 text-sm">8 rule types govern Item Specifics automation. AI classification with 75% confidence threshold. Escalation to ClickUp for manual review.</p>
+                </div>
+                <div class="bg-dark-700 rounded-lg p-6 border border-dark-600">
+                    <h3 class="text-lg font-semibold text-purple-400 mb-2">Phase 5-7: Publishing</h3>
+                    <p class="text-gray-400 text-sm">Pre-publish governance with approval gate, fitment extraction from HTML, and automated title/description generation before going live.</p>
+                </div>
+            </div>
+
+            <!-- Authority Boundaries -->
+            <div class="mt-8 bg-dark-700 rounded-lg p-6 border border-yellow-600/50">
+                <h3 class="text-lg font-semibold text-yellow-400 mb-3">Authority Boundaries</h3>
+                <div class="grid md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                        <span class="text-blue-400 font-medium">Airtable Master Parts Table</span>
+                        <p class="text-gray-400">Source of truth for IPN-level data. Physical field locking.</p>
+                    </div>
+                    <div>
+                        <span class="text-purple-400 font-medium">eBay Listings (API) Table</span>
+                        <p class="text-gray-400">Staging only. Temporary. Never source of truth.</p>
+                    </div>
+                    <div>
+                        <span class="text-red-400 font-medium">ClickUp</span>
+                        <p class="text-gray-400">Escalation path for low-confidence AI or manual-only fields.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Rule Engine Section -->
+    <section id="rule-engine" class="py-20 px-6">
+        <div class="max-w-6xl mx-auto">
+            <h2 class="text-3xl font-bold mb-4">The Rule Engine</h2>
+            <p class="text-gray-400 mb-8">Phase 4 is the hardest part. 8 rule types govern how Item Specifics get populated, with strict enforcement of confidence thresholds and field locking.</p>
+
+            <!-- Rule Types Table -->
+            <div class="bg-dark-700 rounded-xl border border-dark-600 overflow-hidden mb-8">
+                <table class="w-full text-sm">
+                    <thead class="bg-dark-600">
+                        <tr>
+                            <th class="px-4 py-3 text-left font-semibold">Rule</th>
+                            <th class="px-4 py-3 text-left font-semibold">Name</th>
+                            <th class="px-4 py-3 text-left font-semibold">Behavior</th>
+                            <th class="px-4 py-3 text-left font-semibold">Destination</th>
+                            <th class="px-4 py-3 text-left font-semibold">Lock?</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-dark-600">
+                        <tr class="hover:bg-dark-600/50">
+                            <td class="px-4 py-3 font-mono text-green-400">F</td>
+                            <td class="px-4 py-3">Fixed</td>
+                            <td class="px-4 py-3 text-gray-400">Known value for prefix. Write immediately.</td>
+                            <td class="px-4 py-3">Airtable</td>
+                            <td class="px-4 py-3 text-green-400">Yes</td>
+                        </tr>
+                        <tr class="hover:bg-dark-600/50">
+                            <td class="px-4 py-3 font-mono text-blue-400">FsV</td>
+                            <td class="px-4 py-3">Fixed Source &rarr; Variable</td>
+                            <td class="px-4 py-3 text-gray-400">Pull from Master Parts Table. If missing, write "Does Not Apply" to listing only.</td>
+                            <td class="px-4 py-3">Listing</td>
+                            <td class="px-4 py-3 text-gray-500">No</td>
+                        </tr>
+                        <tr class="hover:bg-dark-600/50">
+                            <td class="px-4 py-3 font-mono text-yellow-400">VF</td>
+                            <td class="px-4 py-3">Variable &rarr; Fixed</td>
+                            <td class="px-4 py-3 text-gray-400">AI determines value. If &ge;75% confidence, write + lock. Skip dot-number IPNs.</td>
+                            <td class="px-4 py-3">Airtable</td>
+                            <td class="px-4 py-3 text-green-400">Yes</td>
+                        </tr>
+                        <tr class="hover:bg-dark-600/50">
+                            <td class="px-4 py-3 font-mono text-purple-400">V1</td>
+                            <td class="px-4 py-3">Variable (Listing-Only)</td>
+                            <td class="px-4 py-3 text-gray-400">AI sources from inventory/title/condition. Listing only. Never lock.</td>
+                            <td class="px-4 py-3">Listing</td>
+                            <td class="px-4 py-3 text-gray-500">No</td>
+                        </tr>
+                        <tr class="hover:bg-dark-600/50">
+                            <td class="px-4 py-3 font-mono text-purple-400">V2</td>
+                            <td class="px-4 py-3">Variable (IPN Interpretation)</td>
+                            <td class="px-4 py-3 text-gray-400">AI interprets IPN via external lookup. Listing only.</td>
+                            <td class="px-4 py-3">Listing</td>
+                            <td class="px-4 py-3 text-gray-500">No</td>
+                        </tr>
+                        <tr class="hover:bg-dark-600/50">
+                            <td class="px-4 py-3 font-mono text-gray-400">VB</td>
+                            <td class="px-4 py-3">Variable / Blank</td>
+                            <td class="px-4 py-3 text-gray-400">Optional field. AI fills if confident, else leave blank. Never lock.</td>
+                            <td class="px-4 py-3">Listing</td>
+                            <td class="px-4 py-3 text-gray-500">No</td>
+                        </tr>
+                        <tr class="hover:bg-dark-600/50">
+                            <td class="px-4 py-3 font-mono text-orange-400">VMF</td>
+                            <td class="px-4 py-3">Variable &rarr; Manual &rarr; Fixed</td>
+                            <td class="px-4 py-3 text-gray-400">AI tries first. If &lt;75%, create ClickUp task. Lock after manual entry.</td>
+                            <td class="px-4 py-3">Airtable</td>
+                            <td class="px-4 py-3 text-green-400">After Manual</td>
+                        </tr>
+                        <tr class="hover:bg-dark-600/50">
+                            <td class="px-4 py-3 font-mono text-red-400">MF</td>
+                            <td class="px-4 py-3">Manual &rarr; Fixed</td>
+                            <td class="px-4 py-3 text-gray-400">Always human research. Create ClickUp task immediately. Lock after entry.</td>
+                            <td class="px-4 py-3">Airtable</td>
+                            <td class="px-4 py-3 text-green-400">After Manual</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- State Machine Diagram -->
+            <h3 class="text-2xl font-bold mb-4">State Machine</h3>
+            <p class="text-gray-400 mb-6">Every Item Specific flows through this decision tree. No silent updates, no accidental overwrites.</p>
+
+            <div class="bg-dark-700 rounded-xl p-8 border border-dark-600">
+                <div class="mermaid">
+stateDiagram-v2
+    [*] --> CheckFixed: Process Item Specific
+
+    CheckFixed --> STOP_Fixed: Field is Fixed (F)
+    CheckFixed --> LookupRule: Field not Fixed
+
+    LookupRule --> Rule_F: Rule = F
+    LookupRule --> Rule_FsV: Rule = FsV
+    LookupRule --> Rule_VF: Rule = VF
+    LookupRule --> Rule_V1V2: Rule = V1/V2
+    LookupRule --> Rule_VB: Rule = VB
+    LookupRule --> Rule_VMF: Rule = VMF
+    LookupRule --> Rule_MF: Rule = MF
+
+    state "Fixed Value" as Rule_F
+    Rule_F --> WriteAndLock: Write known value
+
+    state "Fixed Source → Variable" as Rule_FsV
+    Rule_FsV --> CheckMasterData: Check Master Parts Table
+    CheckMasterData --> WriteListing_Value: Value exists
+    CheckMasterData --> WriteListing_DNA: Value missing
+
+    state "Variable → Fixed" as Rule_VF
+    Rule_VF --> CheckDotNumber: Check IPN format
+    CheckDotNumber --> STOP_Skip: Is dot-number (.xxxx)
+    CheckDotNumber --> AIClassify_VF: Normal IPN
+    AIClassify_VF --> WriteAndLock: Confidence ≥ 75%
+    AIClassify_VF --> STOP_LowConf: Confidence < 75%
+
+    state "Variable Listing-Only" as Rule_V1V2
+    Rule_V1V2 --> AIClassify_V: AI determines value
+    AIClassify_V --> WriteListing_Value: Write to listing
+
+    state "Variable / Blank" as Rule_VB
+    Rule_VB --> AIClassify_VB: AI attempts
+    AIClassify_VB --> WriteListing_Value: Confident
+    AIClassify_VB --> LeaveBlank: Not confident
+
+    state "Variable → Manual → Fixed" as Rule_VMF
+    Rule_VMF --> AIClassify_VMF: AI tries first
+    AIClassify_VMF --> WriteAndLock: Confidence ≥ 75%
+    AIClassify_VMF --> CreateClickUp_VMF: Confidence < 75%
+    CreateClickUp_VMF --> WaitManual_VMF: Await human
+    WaitManual_VMF --> WriteAndLock: Manual entry complete
+
+    state "Manual → Fixed" as Rule_MF
+    Rule_MF --> CreateClickUp_MF: Create ClickUp task
+    CreateClickUp_MF --> WaitManual_MF: Await human
+    WaitManual_MF --> WriteAndLock: Manual entry complete
+
+    state "Write + Lock (Airtable)" as WriteAndLock
+    state "Write to Listing Only" as WriteListing_Value
+    state "Write 'Does Not Apply'" as WriteListing_DNA
+    state "Leave Blank" as LeaveBlank
+    state "Skip (dot-number)" as STOP_Skip
+    state "Stop (low confidence)" as STOP_LowConf
+    state "Stop (already fixed)" as STOP_Fixed
+
+    WriteAndLock --> [*]
+    WriteListing_Value --> [*]
+    WriteListing_DNA --> [*]
+    LeaveBlank --> [*]
+    STOP_Skip --> [*]
+    STOP_LowConf --> [*]
+    STOP_Fixed --> [*]
+                </div>
+            </div>
+
+            <!-- Key Constraints -->
+            <div class="grid md:grid-cols-2 gap-6 mt-8">
+                <div class="bg-dark-700 rounded-lg p-6 border border-red-600/50">
+                    <h4 class="text-lg font-semibold text-red-400 mb-3">Critical Constraints</h4>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-400 mt-1">&#x2717;</span>
+                            <span>Never overwrite Fixed (F) values</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-400 mt-1">&#x2717;</span>
+                            <span>Never write "Does Not Apply" to Master Parts Table</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-400 mt-1">&#x2717;</span>
+                            <span>Excluded prefixes (900, 950, 999) never ingested</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-400 mt-1">&#x2717;</span>
+                            <span>No silent updates, no reprocessing</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="bg-dark-700 rounded-lg p-6 border border-green-600/50">
+                    <h4 class="text-lg font-semibold text-green-400 mb-3">Key Behaviors</h4>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-400 mt-1">&#x2713;</span>
+                            <span>75% confidence threshold for all AI decisions</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-400 mt-1">&#x2713;</span>
+                            <span>Physical locking = Airtable field protection</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-400 mt-1">&#x2713;</span>
+                            <span>Dot-number IPNs (.xxxx) skip VF rules</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-400 mt-1">&#x2713;</span>
+                            <span>ClickUp escalation for low confidence / manual fields</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Interactive Demo Section -->
+    <section id="demo" class="py-20 px-6 bg-dark-800">
+        <div class="max-w-6xl mx-auto">
+            <h2 class="text-3xl font-bold mb-4">Interactive Demo</h2>
+            <p class="text-gray-400 mb-8">Select an IPN and Item Specific to see the rule engine in action.</p>
+
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Input Panel -->
+                <div class="bg-dark-700 rounded-xl p-6 border border-dark-600">
+                    <h3 class="text-lg font-semibold mb-4">Input</h3>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-2">IPN Prefix</label>
+                            <select id="ipnPrefix" class="w-full bg-dark-600 border border-dark-500 rounded-lg px-4 py-2 text-white focus:border-blue-500 focus:outline-none">
+                                <option value="">Select a prefix...</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-2">Item Specific</label>
+                            <select id="itemSpecific" class="w-full bg-dark-600 border border-dark-500 rounded-lg px-4 py-2 text-white focus:border-blue-500 focus:outline-none" disabled>
+                                <option value="">Select an Item Specific...</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-2">Simulated AI Confidence</label>
+                            <input type="range" id="aiConfidence" min="0" max="100" value="80" class="w-full">
+                            <div class="flex justify-between text-xs text-gray-500 mt-1">
+                                <span>0%</span>
+                                <span id="confidenceValue" class="text-blue-400">80%</span>
+                                <span>100%</span>
+                            </div>
+                        </div>
+
+                        <button id="runEngine" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            Run Rule Engine
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Output Panel -->
+                <div class="bg-dark-700 rounded-xl p-6 border border-dark-600">
+                    <h3 class="text-lg font-semibold mb-4">Output</h3>
+
+                    <div id="outputPanel" class="space-y-4">
+                        <div class="text-gray-500 text-center py-8">
+                            Select an IPN and Item Specific to see results
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Execution Log -->
+            <div class="mt-8 bg-dark-700 rounded-xl p-6 border border-dark-600">
+                <h3 class="text-lg font-semibold mb-4">Execution Log</h3>
+                <div id="executionLog" class="font-mono text-sm bg-dark-900 rounded-lg p-4 h-48 overflow-y-auto">
+                    <div class="text-gray-500">Waiting for input...</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Implementation Approach Section -->
+    <section id="approach" class="py-20 px-6">
+        <div class="max-w-6xl mx-auto">
+            <h2 class="text-3xl font-bold mb-4">Implementation Approach</h2>
+            <p class="text-gray-400 mb-8">Here's how I'd tackle this project.</p>
+
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="space-y-6">
+                    <div class="bg-dark-700 rounded-xl p-6 border border-dark-600">
+                        <h3 class="text-lg font-semibold text-blue-400 mb-3">Phase 1: Foundation (Weeks 1-2)</h3>
+                        <ul class="space-y-2 text-sm text-gray-400">
+                            <li>&#8226; Set up Airtable schema with proper field types and views</li>
+                            <li>&#8226; Build Powerlink &rarr; Sheets daily sync (Apps Script)</li>
+                            <li>&#8226; Implement Sheets &rarr; Airtable IPN persistence logic</li>
+                            <li>&#8226; Design Part Type Logic tables structure</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-dark-700 rounded-xl p-6 border border-dark-600">
+                        <h3 class="text-lg font-semibold text-orange-400 mb-3">Phase 2: Rule Engine Core</h3>
+                        <ul class="space-y-2 text-sm text-gray-400">
+                            <li>&#8226; Implement all 8 rule types as modular functions</li>
+                            <li>&#8226; Build AI classification layer with confidence scoring</li>
+                            <li>&#8226; Create physical field locking mechanism</li>
+                            <li>&#8226; Integrate ClickUp API for task escalation</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-dark-700 rounded-xl p-6 border border-dark-600">
+                        <h3 class="text-lg font-semibold text-purple-400 mb-3">Phase 3: Publishing Pipeline</h3>
+                        <ul class="space-y-2 text-sm text-gray-400">
+                            <li>&#8226; Build pre-publish governance workflow</li>
+                            <li>&#8226; Implement fitment extraction (HTML parsing)</li>
+                            <li>&#8226; Create title/description generation templates</li>
+                            <li>&#8226; Integrate eBay API for publishing</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="bg-dark-700 rounded-xl p-6 border border-yellow-600/50">
+                        <h3 class="text-lg font-semibold text-yellow-400 mb-3">Key Architectural Decisions</h3>
+                        <ul class="space-y-3 text-sm text-gray-400">
+                            <li class="flex items-start gap-2">
+                                <span class="text-yellow-400 font-bold">1.</span>
+                                <span><strong>Event-driven processing</strong> &mdash; Each IPN change triggers rule evaluation, not batch processing</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-yellow-400 font-bold">2.</span>
+                                <span><strong>Immutable audit log</strong> &mdash; Every field change is logged with timestamp, source, and confidence</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-yellow-400 font-bold">3.</span>
+                                <span><strong>Fail-safe defaults</strong> &mdash; If in doubt, escalate to ClickUp rather than write incorrect data</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-yellow-400 font-bold">4.</span>
+                                <span><strong>Modular rule engine</strong> &mdash; Each rule type is a pure function, easy to test and extend</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-dark-700 rounded-xl p-6 border border-green-600/50">
+                        <h3 class="text-lg font-semibold text-green-400 mb-3">Why I'm a Good Fit</h3>
+                        <ul class="space-y-3 text-sm text-gray-400">
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-400">&#x2713;</span>
+                                <span>Built similar rule engines for data processing pipelines</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-400">&#x2713;</span>
+                                <span>Experience with Airtable automation and API integration</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-400">&#x2713;</span>
+                                <span>Strong focus on data integrity and authority boundaries</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-400">&#x2713;</span>
+                                <span>Clear communication and documentation practices</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-xl p-6 border border-blue-500/50">
+                        <p class="text-gray-300 italic">
+                            "If you enjoy clean data models, strict authority boundaries, and lifecycle enforcement, this project will be a good fit."
+                        </p>
+                        <p class="text-gray-500 text-sm mt-2">&mdash; From your SOW</p>
+                        <p class="text-blue-400 mt-4 font-medium">I do. Let's build it right.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-12 px-6 bg-dark-900 border-t border-dark-600">
+        <div class="max-w-6xl mx-auto text-center">
+            <p class="text-gray-400 mb-4">Ready to discuss your project?</p>
+            <a href="https://github.com/ldraney/ebay-enrichment-demo" class="text-blue-400 hover:text-blue-300 transition">
+                View on GitHub &rarr;
+            </a>
+            <p class="text-gray-600 text-sm mt-8">Built as a proposal demo. All logic is simulated with mock data.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script>
+        // Initialize Mermaid with dark theme
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'dark',
+            themeVariables: {
+                darkMode: true,
+                background: '#1a1a1a',
+                primaryColor: '#3b82f6',
+                primaryTextColor: '#fff',
+                primaryBorderColor: '#60a5fa',
+                lineColor: '#6b7280',
+                secondaryColor: '#7c3aed',
+                tertiaryColor: '#2a2a2a'
+            }
+        });
+    </script>
+    <script src="data.js"></script>
+    <script src="demo.js"></script>
+</body>
+</html>
